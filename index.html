@@ -225,49 +225,27 @@
     function getInfo(ph) { return TABLE[ph.toLowerCase().trim()] || null; }
 
     function processText(text) {
-      // Accepts: "x" «x» \u201cx\u201d /x/ as phoneme delimiters
       var ph = '[a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1\u029d\u0263\u027e\u028e\u014b\u0272\u0271\u0283\u025f\u0361]{1,4}';
-      var delim = '(?:["\u00ab\u201c](' + ph + ')["\u00bb\u201d]|\\/(' + ph + ')\\/)';
-      var re = new RegExp('(?:la\\s+)?' + delim + '\\s+por\\s+(?:la\\s+)?' + delim + '(?:\\s+(?:en\\s+)?(?:\\()?(\\w+)\\s+por\\s+(\\w+)(?:\\))?)?', 'gi');
+      var re = new RegExp('\\/(' + ph + ')\\/', 'gi');
       var reps = [];
-      // Pass 1: substitution patterns ("X" por "Y" / /X/ por /Y/)
-      var result = text.replace(re, function(match, q1, s1, q2, s2, w1, w2) {
-        var ph1 = q1 || s1, ph2 = q2 || s2;
-        var i1 = getInfo(ph1), i2 = getInfo(ph2);
-        if (!i1 || !i2) return match;
-        var word = (w1 && w2) ? " en (" + w1 + " por " + w2 + ")" : "";
-        var expanded = "proceso de sustituci\u00f3n del fonema " +
-          i1.modo + " " + i1.punto + " " + i1.sonoridad + " /" + ph1 + "/ por " +
-          i2.modo + " " + i2.punto + " " + i2.sonoridad + " /" + ph2 + "/" + word;
-        reps.push({ original: match.trim(), expanded: expanded });
-        return expanded;
-      });
-
-      // Pass 2: standalone phonemes (only /x/ notation, not already expanded)
-      var reSingle = new RegExp('\\/(' + ph + ')\\/', 'gi');
-      result = result.replace(reSingle, function(match, phoneme, offset) {
+      var result = text.replace(re, function(match, phoneme) {
         var info = getInfo(phoneme);
         if (!info) return match;
-        // Skip if already inside an expanded description
-        var before = result.substring(Math.max(0, offset - 20), offset);
-        if (/(?:fonema|por|sonoro|sordo)\s+$/.test(before)) return match;
-        var expanded = "fonema " + info.modo + " " + info.punto + " " + info.sonoridad + " /" + phoneme + "/";
+        var expanded = info.modo + " " + info.punto + " " + info.sonoridad + " /" + phoneme + "/";
         reps.push({ original: match.trim(), expanded: expanded });
         return expanded;
       });
-
       return { result: result, replacements: reps };
     }
 
     var EXAMPLE = "En la evaluaci\u00f3n del habla del paciente se observan los siguientes errores:\n" +
-      "- Sustituci\u00f3n de la \"d\" por la \"l\" en codo por colo\n" +
-      "- Sustituci\u00f3n de la \"t\" por la \"d\"\n" +
-      "- Sustituci\u00f3n de la \"s\" por la \"f\"\n" +
-      "- Sustituci\u00f3n de la \"k\" por la \"t\" en casa por tasa\n" +
+      "- Sustituci\u00f3n de /d/ por /l/ en codo por colo\n" +
+      "- Sustituci\u00f3n de /t/ por /d/\n" +
+      "- Sustituci\u00f3n de /s/ por /f/\n" +
+      "- Sustituci\u00f3n de /k/ por /t/ en casa por tasa\n" +
       "- Sustituci\u00f3n de /r/ por /d/ en cara por cada\n" +
-      "- Sustituci\u00f3n de /rr/ por /d/ en perro por pedo\n" +
       "- Distorsi\u00f3n del fonema /s/\n" +
-      "- Omisi\u00f3n del fonema /r/ en posici\u00f3n final";
+      "- Omisi\u00f3n de /rr/ en posici\u00f3n final";
 
     function App() {
       var _s1 = useState(""),    input = _s1[0],  setInput = _s1[1];
@@ -289,15 +267,11 @@
         /* ── How it works ── */
         e("div", { className: "how-box" },
           e("strong", null, "\u00bfC\u00f3mo funciona?"), e("br"),
-          "Detecta patrones como ",
-          e("code", null, "\"d\" por la \"l\""),
-          " o ",
-          e("code", null, "/d/ por /l/"),
-          " y los expande autom\u00e1ticamente. Tambi\u00e9n expande fonemas sueltos como ",
-          e("code", null, "/s/"),
-          ":", e("br"),
+          "Detecta fonemas entre barras como ",
+          e("code", null, "/d/"),
+          " y a\u00f1ade su descripci\u00f3n delante:", e("br"),
           e("em", null,
-            "\u00abproceso de sustituci\u00f3n del fonema oclusivo alveolar sonoro /d/ por lateral alveolar sonoro /l/\u00bb"
+            "/d/ \u2192 oclusivo alveolar sonoro /d/"
           )
         ),
 
@@ -312,7 +286,7 @@
         e("textarea", {
           className: "textarea", value: input,
           onChange: function(ev) { setInput(ev.target.value); setOutput(null); },
-          placeholder: "Pega aqu\u00ed el texto de tu informe con sustituciones como:\n\"d\" por la \"l\" en codo por colo\n/r/ por /d/ en cara por cada\nDistorsi\u00f3n del fonema /s/"
+          placeholder: "Pega aqu\u00ed el texto de tu informe con fonemas entre barras:\nSustituci\u00f3n de /d/ por /l/ en codo por colo\nDistorsi\u00f3n del fonema /s/"
         }),
         e("button", {
           className: "btn btn-primary", disabled: !input.trim(), onClick: handleProcess
@@ -324,7 +298,7 @@
           output.replacements.length > 0
             ? e("div", { className: "replacements-box" },
                 e("div", { className: "replacements-title" },
-                  output.replacements.length + " sustituci\u00f3n(es) expandida(s):"),
+                  output.replacements.length + " fonema(s) expandido(s):"),
                 output.replacements.map(function(r, i) {
                   return e("div", { className: "replacement-item", key: i },
                     e("div", { className: "replacement-old" }, r.original),
@@ -333,7 +307,7 @@
                 })
               )
             : e("div", { className: "warn-box" },
-                "No se encontraron patrones. Aseg\u00farate de usar: \"X\" por \"Y\", /X/ por /Y/, o fonemas sueltos como /X/"
+                "No se encontraron fonemas entre barras. Aseg\u00farate de usar el formato /fonema/ en tu texto."
               ),
 
           e("div", { className: "label-row", style: { marginBottom: 8 } },
