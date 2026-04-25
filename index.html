@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expansor de Fonemas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #1a1a2e;
+      --ink-light: #4a4a6a;
+      --bg: #f8f6f1;
+      --card: #ffffff;
+      --accent: #0f3460;
+      --accent-hover: #1a5276;
+      --success: #2e7d32;
+      --success-bg: #e8f5e9;
+      --success-border: #a5d6a7;
+      --warn-bg: #fff3e0;
+      --warn-border: #ffcc80;
+      --warn-text: #e65100;
+      --border: #e0dcd4;
+      --border-focus: #0f3460;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'DM Sans', system-ui, sans-serif;
+    }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 36px 40px 32px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      top: -40%; right: -10%;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; position: relative; }
+    .header p { margin-top: 6px; font-size: 14px; opacity: 0.6; font-weight: 400; }
+    .main { max-width: 860px; margin: 0 auto; padding: 32px 24px 60px; }
+    .how-box {
+      background: #eef2f9; border: 1px solid #c5d4e8; border-radius: 10px;
+      padding: 18px 22px; margin-bottom: 28px; font-size: 13.5px;
+      line-height: 1.75; color: #1a3a5c;
+    }
+    .how-box strong { font-size: 14px; }
+    .how-box code {
+      background: #fff; padding: 2px 7px; border-radius: 4px;
+      border: 1px solid #d4d4d4; font-family: var(--mono); font-size: 12px;
+    }
+    .how-box em { color: var(--accent); font-style: italic; }
+    .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-light); }
+    .btn { border: none; border-radius: 7px; font-family: var(--sans); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-ghost { background: transparent; border: 1px solid #bbb; color: #666; padding: 5px 14px; font-size: 12px; }
+    .btn-ghost:hover { border-color: #888; color: #333; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: white; padding: 12px 36px; font-size: 15px; margin-bottom: 28px;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; filter: none; }
+    .btn-copy { background: var(--accent); color: white; padding: 6px 18px; font-size: 12px; }
+    .btn-copy.copied { background: var(--success); }
+    .textarea {
+      width: 100%; min-height: 180px; padding: 16px 18px;
+      border: 2px solid var(--border); border-radius: 10px;
+      font-family: var(--sans); font-size: 14px; line-height: 1.75;
+      color: var(--ink); background: var(--card); resize: vertical;
+      outline: none; transition: border-color 0.2s; margin-bottom: 16px;
+    }
+    .textarea:focus { border-color: var(--border-focus); }
+    .textarea::placeholder { color: #aaa; }
+    .output-area { animation: slideUp 0.35s ease; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .replacements-box {
+      background: var(--success-bg); border: 1px solid var(--success-border);
+      border-radius: 10px; padding: 18px 22px; margin-bottom: 18px;
+    }
+    .replacements-title { font-size: 13px; font-weight: 700; color: var(--success); margin-bottom: 12px; }
+    .replacement-item {
+      background: #fff; border: 1px solid #c8e6c9; border-radius: 7px;
+      padding: 10px 14px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.65;
+    }
+    .replacement-item:last-child { margin-bottom: 0; }
+    .replacement-old { color: #999; text-decoration: line-through; }
+    .replacement-new { color: #1b5e20; font-weight: 500; margin-top: 4px; }
+    .warn-box {
+      background: var(--warn-bg); border: 1px solid var(--warn-border);
+      border-radius: 10px; padding: 16px 22px; margin-bottom: 18px;
+      font-size: 13px; color: var(--warn-text);
+    }
+    .result-box {
+      background: var(--card); border: 2px solid var(--accent);
+      border-radius: 10px; padding: 22px; font-size: 14px;
+      line-height: 1.85; white-space: pre-wrap; color: #222;
+    }
+    details { margin-top: 36px; }
+    details summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #666; padding: 8px 0; list-style: none; }
+    details summary::before { content: '\25B8 '; }
+    details[open] summary::before { content: '\25BE '; }
+    .ref-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
+    .ref-table thead tr { background: var(--ink); color: white; }
+    .ref-table th { padding: 10px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .ref-table td { padding: 9px 16px; border-bottom: 1px solid #eee; }
+    .ref-table tbody tr:nth-child(even) { background: #fafafa; }
+    .ref-table .phoneme-cell { font-family: var(--mono); font-weight: 700; font-size: 15px; }
+    .ref-table .sonoro { color: var(--success); }
+    .ref-table .sordo { color: #c62828; }
+    .ref-table .note { font-size: 10px; color: #888; font-style: italic; }
+    .builder {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 22px; margin-bottom: 28px;
+    }
+    .builder-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); margin-bottom: 14px; }
+    .builder-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .builder-select {
+      flex: 1; min-width: 140px; padding: 10px 12px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-family: var(--sans); font-size: 14px; background: var(--card);
+      color: var(--ink); cursor: pointer; outline: none; transition: border-color 0.2s;
+    }
+    .builder-select:focus { border-color: var(--border-focus); }
+    .builder-x { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 18px; padding: 0 4px; }
+    .builder-checks { display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 18px; align-items: center; }
+    .builder-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; user-select: none; }
+    .builder-check input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); }
+    .builder-check--todas { margin-left: auto; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12.5px; color: var(--accent); }
+    .builder .btn-primary { margin-bottom: 0; }
+    .builder-output { margin-top: 18px; animation: slideUp 0.35s ease; }
+    @media (max-width: 600px) {
+      .header { padding: 28px 20px 24px; }
+      .header h1 { font-size: 22px; }
+      .main { padding: 24px 16px 48px; }
+      .btn-primary { width: 100%; text-align: center; }
+      .builder-row { flex-direction: column; align-items: stretch; }
+      .builder-x { text-align: center; }
+      .builder-check--todas { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Expansor de Fonemas</h1>
+    <p>Transforma sustituciones abreviadas en descripciones fonol&oacute;gicas completas</p>
+  </div>
+
+  <div class="main" id="app"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script>
+    var useState = React.useState;
+    var useCallback = React.useCallback;
+    var e = React.createElement;
+
+    /* ══════════════════════════════════════════
+       PHONEME TABLE — updated
+       ══════════════════════════════════════════ */
+    var TABLE = {
+      "m":    { modo:"nasal", punto:"bilabial", sonoridad:"sonoro" },
+      "\u0271": { modo:"nasal", punto:"labiodental", sonoridad:"sonoro" },
+      "n":    { modo:"nasal", punto:"alveolar", sonoridad:"sonoro" },
+      "\u00f1": { modo:"nasal", punto:"palatal", sonoridad:"sonoro" },
+      "\u0272": { modo:"nasal", punto:"palatal", sonoridad:"sonoro" },
+      "\u014b": { modo:"nasal", punto:"velar", sonoridad:"sonoro" },
+
+      "p":    { modo:"oclusivo", punto:"bilabial", sonoridad:"sordo" },
+      "b":    { modo:"oclusivo", punto:"bilabial", sonoridad:"sonoro" },
+      "t":    { modo:"oclusivo", punto:"alveolar", sonoridad:"sordo" },
+      "d":    { modo:"oclusivo", punto:"alveolar", sonoridad:"sonoro" },
+      "k":    { modo:"oclusivo", punto:"velar", sonoridad:"sordo" },
+      "g":    { modo:"oclusivo", punto:"velar", sonoridad:"sonoro" },
+
+      "f":    { modo:"fricativo", punto:"labiodental", sonoridad:"sordo" },
+      "v":    { modo:"fricativo", punto:"labiodental", sonoridad:"sonoro" },
+      "s":    { modo:"fricativo", punto:"alveolar", sonoridad:"sordo" },
+      "\u029d": { modo:"fricativo", punto:"palatal", sonoridad:"sonoro" },
+      "h":    { modo:"fricativo", punto:"velar", sonoridad:"sordo" },
+      "\u0263": { modo:"fricativo", punto:"velar", sonoridad:"sonoro" },
+
+      "r":    { modo:"r\u00f3tico vibrante", punto:"alveolar", sonoridad:"sonoro" },
+      "rr":   { modo:"r\u00f3tico vibrante", punto:"alveolar", sonoridad:"sonoro" },
+      "\u027e": { modo:"r\u00f3tico percusivo simple", punto:"alveolar", sonoridad:"sonoro" },
+
+      "l":    { modo:"lateral", punto:"alveolar", sonoridad:"sonoro" },
+      "\u028e": { modo:"lateral", punto:"palatal", sonoridad:"sonoro" },
+      "ll":   { modo:"lateral", punto:"palatal", sonoridad:"sonoro" },
+
+      "t\u0361\u0283": { modo:"africado", punto:"palatal", sonoridad:"sordo" },
+      "t\u0283": { modo:"africado", punto:"palatal", sonoridad:"sordo" },
+      "ch":   { modo:"africado", punto:"palatal", sonoridad:"sordo" },
+
+      "w":    { modo:"deslizante", punto:"labiovelar", sonoridad:"sonoro" },
+      "\u025f": { modo:"deslizante", punto:"palatal", sonoridad:"sonoro" },
+    };
+
+    /* Reference table rows for display */
+    var TABLE_DISPLAY = [
+      { ph:"m",      modo:"nasal",                        punto:"bilabial",      son:"sonoro" },
+      { ph:"\u0271", modo:"nasal",                        punto:"labiodental",   son:"sonoro" },
+      { ph:"n",      modo:"nasal",                        punto:"alveolar",      son:"sonoro" },
+      { ph:"\u00f1", modo:"nasal",                        punto:"palatal",       son:"sonoro" },
+      { ph:"\u014b", modo:"nasal",                        punto:"velar",         son:"sonoro" },
+      { ph:"p",      modo:"oclusivo",                     punto:"bilabial",      son:"sordo" },
+      { ph:"b",      modo:"oclusivo",                     punto:"bilabial",      son:"sonoro" },
+      { ph:"t",      modo:"oclusivo",                     punto:"alveolar",      son:"sordo" },
+      { ph:"d",      modo:"oclusivo",                     punto:"alveolar",      son:"sonoro" },
+      { ph:"k",      modo:"oclusivo",                     punto:"velar",         son:"sordo" },
+      { ph:"g",      modo:"oclusivo",                     punto:"velar",         son:"sonoro" },
+      { ph:"f",      modo:"fricativo",                    punto:"labiodental",   son:"sordo" },
+      { ph:"v",      modo:"fricativo",                    punto:"labiodental",   son:"sonoro" },
+      { ph:"s",      modo:"fricativo",                    punto:"alveolar",      son:"sordo" },
+      { ph:"\u029d", modo:"fricativo",                    punto:"palatal",       son:"sonoro" },
+      { ph:"h",      modo:"fricativo",                    punto:"velar",         son:"sordo" },
+      { ph:"\u0263", modo:"fricativo",                    punto:"velar",         son:"sonoro" },
+      { ph:"r",      modo:"r\u00f3tico vibrante",         punto:"alveolar",      son:"sonoro" },
+      { ph:"\u027e", modo:"r\u00f3tico percusivo simple", punto:"alveolar",      son:"sonoro" },
+      { ph:"l",      modo:"lateral",                      punto:"alveolar",      son:"sonoro" },
+      { ph:"\u028e", modo:"lateral",                      punto:"palatal",       son:"sonoro" },
+      { ph:"ll",     modo:"lateral",                      punto:"palatal",       son:"sonoro", note:"(alias)" },
+      { ph:"t\u0361\u0283", modo:"africado",              punto:"palatal",       son:"sordo" },
+      { ph:"ch",     modo:"africado",                     punto:"palatal",       son:"sordo",  note:"(alias)" },
+      { ph:"rr",     modo:"r\u00f3tico vibrante",         punto:"alveolar",      son:"sonoro", note:"(alias)" },
+      { ph:"w",      modo:"deslizante",                   punto:"labiovelar",    son:"sonoro" },
+      { ph:"\u025f", modo:"deslizante",                   punto:"palatal",       son:"sonoro" },
+      { ph:"h",      modo:"deslizante",                   punto:"glotal",        son:"sordo",  note:"(tambi\u00e9n)" },
+    ];
+
+    function getInfo(ph) { return TABLE[ph.toLowerCase().trim()] || null; }
+
+    function processText(text) {
+      var ph = '[a-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1\u029d\u0263\u027e\u028e\u014b\u0272\u0271\u0283\u025f\u0361]{1,4}';
+      var re = new RegExp('\\/(' + ph + ')\\/', 'gi');
+      var reps = [];
+      var result = text.replace(re, function(match, phoneme) {
+        var info = getInfo(phoneme);
+        if (!info) return match;
+        var expanded = info.modo + " " + info.punto + " " + info.sonoridad + " /" + phoneme + "/";
+        reps.push({ original: match.trim(), expanded: expanded });
+        return expanded;
+      });
+      return { result: result, replacements: reps };
+    }
+
+    var EXAMPLE = "En la evaluaci\u00f3n del habla del paciente se observan los siguientes errores:\n" +
+      "- Sustituci\u00f3n de /d/ por /l/ en codo por colo\n" +
+      "- Sustituci\u00f3n de /t/ por /d/\n" +
+      "- Sustituci\u00f3n de /s/ por /f/\n" +
+      "- Sustituci\u00f3n de /k/ por /t/ en casa por tasa\n" +
+      "- Sustituci\u00f3n de /r/ por /d/ en cara por cada\n" +
+      "- Distorsi\u00f3n del fonema /s/\n" +
+      "- Omisi\u00f3n de /rr/ en posici\u00f3n final";
+
+    var POSITION_KEYS = ["inicial", "media", "final", "trabante"];
+
+    function joinPositions(arr) {
+      if (arr.length === 1) return arr[0];
+      if (arr.length === 2) return arr[0] + " y " + arr[1];
+      if (arr.length === 3) return arr[0] + ", " + arr[1] + " y " + arr[2];
+      return arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1];
+    }
+
+    function describe(ph) {
+      var info = getInfo(ph);
+      if (!info) return "/" + ph + "/";
+      return info.modo + " " + info.punto + " " + info.sonoridad + " /" + ph + "/";
+    }
+
+    function buildSustitucion(ph1, ph2, positions) {
+      var selected = POSITION_KEYS.filter(function(k) { return positions[k]; });
+      var todas = selected.length === POSITION_KEYS.length;
+      var positionPhrase = todas
+        ? "en todas las posiciones de la palabra"
+        : "en posición de palabra " + joinPositions(selected);
+      return "sustitución de " + describe(ph1) + " por " + describe(ph2) + " " + positionPhrase + ".";
+    }
+
+    function SustitutionBuilder() {
+      var _p1 = useState(""),    ph1 = _p1[0],  setPh1 = _p1[1];
+      var _p2 = useState(""),    ph2 = _p2[0],  setPh2 = _p2[1];
+      var _ps = useState({ inicial: false, media: false, final: false, trabante: false });
+      var positions = _ps[0], setPositions = _ps[1];
+      var _o  = useState(null),  output = _o[0], setOutput = _o[1];
+      var _c  = useState(false), copied = _c[0], setCopied = _c[1];
+
+      var phonemeKeys = Object.keys(TABLE);
+      var todasChecked = POSITION_KEYS.every(function(k) { return positions[k]; });
+      var atLeastOne = POSITION_KEYS.some(function(k) { return positions[k]; });
+      var canGenerate = !!ph1 && !!ph2 && atLeastOne;
+
+      var handlePh1 = useCallback(function(ev) {
+        var v = ev.target.value;
+        setPh1(v);
+        setPh2(function(prev) { return prev === v ? "" : prev; });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var handlePh2 = useCallback(function(ev) {
+        setPh2(ev.target.value); setOutput(null); setCopied(false);
+      }, []);
+
+      var togglePosition = useCallback(function(key) {
+        setPositions(function(prev) {
+          var next = Object.assign({}, prev);
+          next[key] = !prev[key];
+          return next;
+        });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var toggleTodas = useCallback(function() {
+        setPositions(function(prev) {
+          var all = POSITION_KEYS.every(function(k) { return prev[k]; });
+          var value = !all;
+          return { inicial: value, media: value, final: value, trabante: value };
+        });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var handleGenerate = useCallback(function() {
+        setOutput(buildSustitucion(ph1, ph2, positions)); setCopied(false);
+      }, [ph1, ph2, positions]);
+
+      var handleCopy = useCallback(function() {
+        if (!output) return;
+        navigator.clipboard.writeText(output);
+        setCopied(true);
+        setTimeout(function() { setCopied(false); }, 2000);
+      }, [output]);
+
+      function phonemeOption(ph) {
+        return e("option", { key: ph, value: ph }, "/" + ph + "/");
+      }
+
+      return e("div", { className: "builder" },
+        e("div", { className: "builder-title" }, "Generador de sustitución"),
+        e("div", { className: "builder-row" },
+          e("select", { className: "builder-select", value: ph1, onChange: handlePh1 },
+            e("option", { value: "" }, "Fonema 1"),
+            phonemeKeys.map(phonemeOption)
+          ),
+          e("span", { className: "builder-x" }, "×"),
+          e("select", { className: "builder-select", value: ph2, onChange: handlePh2 },
+            e("option", { value: "" }, "Fonema 2"),
+            phonemeKeys.filter(function(k) { return k !== ph1; }).map(phonemeOption)
+          )
+        ),
+        e("div", { className: "builder-checks" },
+          POSITION_KEYS.map(function(key) {
+            return e("label", { className: "builder-check", key: key },
+              e("input", {
+                type: "checkbox",
+                checked: positions[key],
+                onChange: function() { togglePosition(key); }
+              }),
+              key
+            );
+          }),
+          e("label", { className: "builder-check builder-check--todas" },
+            e("input", { type: "checkbox", checked: todasChecked, onChange: toggleTodas }),
+            "todas"
+          )
+        ),
+        e("button", {
+          className: "btn btn-primary", disabled: !canGenerate, onClick: handleGenerate
+        }, "Generar"),
+        output && e("div", { className: "builder-output" },
+          e("div", { className: "label-row", style: { marginBottom: 8 } },
+            e("span", { className: "label" }, "Resultado"),
+            e("button", {
+              className: "btn btn-copy" + (copied ? " copied" : ""),
+              onClick: handleCopy
+            }, copied ? "✓ Copiado" : "Copiar")
+          ),
+          e("div", { className: "result-box" }, output)
+        )
+      );
+    }
+
+    function App() {
+      var _s1 = useState(""),    input = _s1[0],  setInput = _s1[1];
+      var _s2 = useState(null),  output = _s2[0], setOutput = _s2[1];
+      var _s3 = useState(false), copied = _s3[0], setCopied = _s3[1];
+
+      var handleProcess = useCallback(function() {
+        setOutput(processText(input)); setCopied(false);
+      }, [input]);
+
+      var handleCopy = useCallback(function() {
+        if (!output) return;
+        navigator.clipboard.writeText(output.result);
+        setCopied(true);
+        setTimeout(function() { setCopied(false); }, 2000);
+      }, [output]);
+
+      return e("div", null,
+        /* ── Sustitution builder ── */
+        e(SustitutionBuilder),
+
+        /* ── How it works ── */
+        e("div", { className: "how-box" },
+          e("strong", null, "\u00bfC\u00f3mo funciona?"), e("br"),
+          "Detecta fonemas entre barras como ",
+          e("code", null, "/d/"),
+          " y a\u00f1ade su descripci\u00f3n delante:", e("br"),
+          e("em", null,
+            "/d/ \u2192 oclusivo alveolar sonoro /d/"
+          )
+        ),
+
+        /* ── Input ── */
+        e("div", { className: "label-row" },
+          e("span", { className: "label" }, "Texto del informe"),
+          e("button", {
+            className: "btn btn-ghost",
+            onClick: function() { setInput(EXAMPLE); setOutput(null); setCopied(false); }
+          }, "Cargar ejemplo")
+        ),
+        e("textarea", {
+          className: "textarea", value: input,
+          onChange: function(ev) { setInput(ev.target.value); setOutput(null); },
+          placeholder: "Pega aqu\u00ed el texto de tu informe con fonemas entre barras:\nSustituci\u00f3n de /d/ por /l/ en codo por colo\nDistorsi\u00f3n del fonema /s/"
+        }),
+        e("button", {
+          className: "btn btn-primary", disabled: !input.trim(), onClick: handleProcess
+        }, "Procesar informe"),
+
+        /* ── Output ── */
+        output && e("div", { className: "output-area" },
+
+          output.replacements.length > 0
+            ? e("div", { className: "replacements-box" },
+                e("div", { className: "replacements-title" },
+                  output.replacements.length + " fonema(s) expandido(s):"),
+                output.replacements.map(function(r, i) {
+                  return e("div", { className: "replacement-item", key: i },
+                    e("div", { className: "replacement-old" }, r.original),
+                    e("div", { className: "replacement-new" }, "\u2192 " + r.expanded)
+                  );
+                })
+              )
+            : e("div", { className: "warn-box" },
+                "No se encontraron fonemas entre barras. Aseg\u00farate de usar el formato /fonema/ en tu texto."
+              ),
+
+          e("div", { className: "label-row", style: { marginBottom: 8 } },
+            e("span", { className: "label" }, "Resultado"),
+            e("button", {
+              className: "btn btn-copy" + (copied ? " copied" : ""),
+              onClick: handleCopy
+            }, copied ? "\u2713 Copiado" : "Copiar")
+          ),
+          e("div", { className: "result-box" }, output.result)
+        ),
+
+        /* ── Reference table ── */
+        e("details", null,
+          e("summary", null, "Ver tabla de fonemas de referencia"),
+          e("table", { className: "ref-table" },
+            e("thead", null,
+              e("tr", null,
+                e("th", null, "Fonema"),
+                e("th", null, "Modo"),
+                e("th", null, "Punto"),
+                e("th", null, "Sonoridad")
+              )
+            ),
+            e("tbody", null,
+              TABLE_DISPLAY.map(function(row, i) {
+                return e("tr", { key: row.ph + i },
+                  e("td", { className: "phoneme-cell" },
+                    "/" + row.ph + "/",
+                    row.note ? e("span", { className: "note", style: { marginLeft: 6 } }, row.note) : null
+                  ),
+                  e("td", null, row.modo),
+                  e("td", null, row.punto),
+                  e("td", { className: row.son === "sonoro" ? "sonoro" : "sordo" }, row.son)
+                );
+              })
+            )
+          )
+        )
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("app")).render(e(App));
+  </script>
+</body>
+</html>
