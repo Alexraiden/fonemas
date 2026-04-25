@@ -127,24 +127,44 @@
     .ref-table .note { font-size: 10px; color: #888; font-style: italic; }
     .builder {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 22px; margin-bottom: 28px;
+      border-radius: 10px; padding: 22px; margin-bottom: 0;
     }
-    .builder-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); margin-bottom: 14px; }
+    .builder-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); margin-bottom: 12px; }
+    .builder-howbox {
+      background: #f0f4ff; border: 1px solid #c5d4e8; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 16px; font-size: 13px;
+      line-height: 1.7; color: #1a3a5c;
+    }
+    .builder-howbox code {
+      background: #fff; padding: 1px 6px; border-radius: 4px;
+      border: 1px solid #d4d4d4; font-family: var(--mono); font-size: 12px;
+    }
     .builder-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-    .builder-select {
-      flex: 1; min-width: 140px; padding: 10px 12px;
+    .builder-input-wrap { flex: 1; min-width: 130px; position: relative; }
+    .builder-input {
+      width: 100%; padding: 10px 12px;
       border: 2px solid var(--border); border-radius: 8px;
-      font-family: var(--sans); font-size: 14px; background: var(--card);
-      color: var(--ink); cursor: pointer; outline: none; transition: border-color 0.2s;
+      font-family: var(--mono); font-size: 15px; background: var(--card);
+      color: var(--ink); outline: none; transition: border-color 0.2s;
     }
-    .builder-select:focus { border-color: var(--border-focus); }
-    .builder-x { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 18px; padding: 0 4px; }
+    .builder-input:focus { border-color: var(--border-focus); }
+    .builder-input.is-valid { border-color: var(--success); }
+    .builder-input.is-invalid { border-color: #e57373; }
+    .builder-x { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 18px; padding: 0 4px; flex-shrink: 0; }
     .builder-checks { display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 18px; align-items: center; }
     .builder-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; user-select: none; }
     .builder-check input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); }
     .builder-check--todas { margin-left: auto; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12.5px; color: var(--accent); }
     .builder .btn-primary { margin-bottom: 0; }
     .builder-output { margin-top: 18px; animation: slideUp 0.35s ease; }
+    .section-divider {
+      display: flex; align-items: center; gap: 14px;
+      margin: 28px 0; color: var(--ink-light); font-size: 12px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+    }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
     @media (max-width: 600px) {
       .header { padding: 28px 20px 24px; }
       .header h1 { font-size: 22px; }
@@ -294,28 +314,35 @@
       return "sustitución de " + describe(ph1) + " por " + describe(ph2) + " " + positionPhrase + ".";
     }
 
+    function resolvePh(raw) {
+      return raw.replace(/\//g, "").trim().toLowerCase();
+    }
+
     function SustitutionBuilder() {
-      var _p1 = useState(""),    ph1 = _p1[0],  setPh1 = _p1[1];
-      var _p2 = useState(""),    ph2 = _p2[0],  setPh2 = _p2[1];
+      var _p1 = useState(""),    ph1Raw = _p1[0],  setPh1Raw = _p1[1];
+      var _p2 = useState(""),    ph2Raw = _p2[0],  setPh2Raw = _p2[1];
       var _ps = useState({ inicial: false, media: false, final: false, trabante: false });
       var positions = _ps[0], setPositions = _ps[1];
       var _o  = useState(null),  output = _o[0], setOutput = _o[1];
       var _c  = useState(false), copied = _c[0], setCopied = _c[1];
 
+      var ph1Key = resolvePh(ph1Raw);
+      var ph2Key = resolvePh(ph2Raw);
+      var ph1Valid = !!getInfo(ph1Key);
+      var ph2Valid = !!getInfo(ph2Key) && ph2Key !== ph1Key;
       var phonemeKeys = Object.keys(TABLE);
       var todasChecked = POSITION_KEYS.every(function(k) { return positions[k]; });
       var atLeastOne = POSITION_KEYS.some(function(k) { return positions[k]; });
-      var canGenerate = !!ph1 && !!ph2 && atLeastOne;
+      var canGenerate = ph1Valid && ph2Valid && atLeastOne;
 
       var handlePh1 = useCallback(function(ev) {
         var v = ev.target.value;
-        setPh1(v);
-        setPh2(function(prev) { return prev === v ? "" : prev; });
+        setPh1Raw(v);
         setOutput(null); setCopied(false);
       }, []);
 
       var handlePh2 = useCallback(function(ev) {
-        setPh2(ev.target.value); setOutput(null); setCopied(false);
+        setPh2Raw(ev.target.value); setOutput(null); setCopied(false);
       }, []);
 
       var togglePosition = useCallback(function(key) {
@@ -337,8 +364,8 @@
       }, []);
 
       var handleGenerate = useCallback(function() {
-        setOutput(buildSustitucion(ph1, ph2, positions)); setCopied(false);
-      }, [ph1, ph2, positions]);
+        setOutput(buildSustitucion(ph1Key, ph2Key, positions)); setCopied(false);
+      }, [ph1Key, ph2Key, positions]);
 
       var handleCopy = useCallback(function() {
         if (!output) return;
@@ -347,21 +374,43 @@
         setTimeout(function() { setCopied(false); }, 2000);
       }, [output]);
 
+      function inputClass(raw, isValid) {
+        if (!raw.trim()) return "builder-input";
+        return "builder-input " + (isValid ? "is-valid" : "is-invalid");
+      }
+
       function phonemeOption(ph) {
-        return e("option", { key: ph, value: ph }, "/" + ph + "/");
+        return e("option", { key: ph, value: "/" + ph + "/" });
       }
 
       return e("div", { className: "builder" },
         e("div", { className: "builder-title" }, "Generador de sustitución"),
+        e("div", { className: "builder-howbox" },
+          "Selecciona dos fonemas y una o varias posiciones, luego pulsa ", e("strong", null, "Generar"),
+          ". Puedes escribir directamente (", e("code", null, "s"), " o ",
+          e("code", null, "/s/"), ") o elegir del desplegable."
+        ),
+        e("datalist", { id: "builder-dl-1" }, phonemeKeys.map(phonemeOption)),
+        e("datalist", { id: "builder-dl-2" },
+          phonemeKeys.filter(function(k) { return k !== ph1Key; }).map(phonemeOption)
+        ),
         e("div", { className: "builder-row" },
-          e("select", { className: "builder-select", value: ph1, onChange: handlePh1 },
-            e("option", { value: "" }, "Fonema 1"),
-            phonemeKeys.map(phonemeOption)
+          e("div", { className: "builder-input-wrap" },
+            e("input", {
+              type: "text", list: "builder-dl-1",
+              className: inputClass(ph1Raw, ph1Valid),
+              value: ph1Raw, onChange: handlePh1,
+              placeholder: "Fonema 1"
+            })
           ),
           e("span", { className: "builder-x" }, "×"),
-          e("select", { className: "builder-select", value: ph2, onChange: handlePh2 },
-            e("option", { value: "" }, "Fonema 2"),
-            phonemeKeys.filter(function(k) { return k !== ph1; }).map(phonemeOption)
+          e("div", { className: "builder-input-wrap" },
+            e("input", {
+              type: "text", list: "builder-dl-2",
+              className: inputClass(ph2Raw, ph2Valid),
+              value: ph2Raw, onChange: handlePh2,
+              placeholder: "Fonema 2"
+            })
           )
         ),
         e("div", { className: "builder-checks" },
@@ -415,6 +464,9 @@
       return e("div", null,
         /* ── Sustitution builder ── */
         e(SustitutionBuilder),
+
+        /* ── Separator ── */
+        e("div", { className: "section-divider" }, "Expansor de fonemas"),
 
         /* ── How it works ── */
         e("div", { className: "how-box" },
