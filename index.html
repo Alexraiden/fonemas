@@ -125,19 +125,42 @@
     .ref-table .sonoro { color: var(--success); }
     .ref-table .sordo { color: #c62828; }
     .ref-table .note { font-size: 10px; color: #888; font-style: italic; }
+    .builder {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 22px; margin-bottom: 28px;
+    }
+    .builder-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--accent); margin-bottom: 14px; }
+    .builder-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .builder-select {
+      flex: 1; min-width: 140px; padding: 10px 12px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-family: var(--sans); font-size: 14px; background: var(--card);
+      color: var(--ink); cursor: pointer; outline: none; transition: border-color 0.2s;
+    }
+    .builder-select:focus { border-color: var(--border-focus); }
+    .builder-x { font-family: var(--mono); font-weight: 700; color: var(--accent); font-size: 18px; padding: 0 4px; }
+    .builder-checks { display: flex; flex-wrap: wrap; gap: 14px 18px; margin-bottom: 18px; align-items: center; }
+    .builder-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; user-select: none; }
+    .builder-check input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); }
+    .builder-check--todas { margin-left: auto; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12.5px; color: var(--accent); }
+    .builder .btn-primary { margin-bottom: 0; }
+    .builder-output { margin-top: 18px; animation: slideUp 0.35s ease; }
     @media (max-width: 600px) {
       .header { padding: 28px 20px 24px; }
       .header h1 { font-size: 22px; }
       .main { padding: 24px 16px 48px; }
       .btn-primary { width: 100%; text-align: center; }
+      .builder-row { flex-direction: column; align-items: stretch; }
+      .builder-x { text-align: center; }
+      .builder-check--todas { margin-left: 0; }
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h1>Expansor de Fonemas para mi Amorcito</h1>
-    <p>Transforma sustituciones abreviadas en descripciones fonol&oacute;gicas completas. Mi amorcito es la mas inteligente</p>
+    <h1>Expansor de Fonemas</h1>
+    <p>Transforma sustituciones abreviadas en descripciones fonol&oacute;gicas completas</p>
   </div>
 
   <div class="main" id="app"></div>
@@ -247,6 +270,132 @@
       "- Distorsi\u00f3n del fonema /s/\n" +
       "- Omisi\u00f3n de /rr/ en posici\u00f3n final";
 
+    var POSITION_KEYS = ["inicial", "media", "final", "trabante"];
+
+    function joinPositions(arr) {
+      if (arr.length === 1) return arr[0];
+      if (arr.length === 2) return arr[0] + " y " + arr[1];
+      if (arr.length === 3) return arr[0] + ", " + arr[1] + " y " + arr[2];
+      return arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1];
+    }
+
+    function describe(ph) {
+      var info = getInfo(ph);
+      if (!info) return "/" + ph + "/";
+      return info.modo + " " + info.punto + " " + info.sonoridad + " /" + ph + "/";
+    }
+
+    function buildSustitucion(ph1, ph2, positions) {
+      var selected = POSITION_KEYS.filter(function(k) { return positions[k]; });
+      var todas = selected.length === POSITION_KEYS.length;
+      var positionPhrase = todas
+        ? "en todas las posiciones de la palabra"
+        : "en posición de palabra " + joinPositions(selected);
+      return "sustitución de " + describe(ph1) + " por " + describe(ph2) + " " + positionPhrase + ".";
+    }
+
+    function SustitutionBuilder() {
+      var _p1 = useState(""),    ph1 = _p1[0],  setPh1 = _p1[1];
+      var _p2 = useState(""),    ph2 = _p2[0],  setPh2 = _p2[1];
+      var _ps = useState({ inicial: false, media: false, final: false, trabante: false });
+      var positions = _ps[0], setPositions = _ps[1];
+      var _o  = useState(null),  output = _o[0], setOutput = _o[1];
+      var _c  = useState(false), copied = _c[0], setCopied = _c[1];
+
+      var phonemeKeys = Object.keys(TABLE);
+      var todasChecked = POSITION_KEYS.every(function(k) { return positions[k]; });
+      var atLeastOne = POSITION_KEYS.some(function(k) { return positions[k]; });
+      var canGenerate = !!ph1 && !!ph2 && atLeastOne;
+
+      var handlePh1 = useCallback(function(ev) {
+        var v = ev.target.value;
+        setPh1(v);
+        setPh2(function(prev) { return prev === v ? "" : prev; });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var handlePh2 = useCallback(function(ev) {
+        setPh2(ev.target.value); setOutput(null); setCopied(false);
+      }, []);
+
+      var togglePosition = useCallback(function(key) {
+        setPositions(function(prev) {
+          var next = Object.assign({}, prev);
+          next[key] = !prev[key];
+          return next;
+        });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var toggleTodas = useCallback(function() {
+        setPositions(function(prev) {
+          var all = POSITION_KEYS.every(function(k) { return prev[k]; });
+          var value = !all;
+          return { inicial: value, media: value, final: value, trabante: value };
+        });
+        setOutput(null); setCopied(false);
+      }, []);
+
+      var handleGenerate = useCallback(function() {
+        setOutput(buildSustitucion(ph1, ph2, positions)); setCopied(false);
+      }, [ph1, ph2, positions]);
+
+      var handleCopy = useCallback(function() {
+        if (!output) return;
+        navigator.clipboard.writeText(output);
+        setCopied(true);
+        setTimeout(function() { setCopied(false); }, 2000);
+      }, [output]);
+
+      function phonemeOption(ph) {
+        return e("option", { key: ph, value: ph }, "/" + ph + "/");
+      }
+
+      return e("div", { className: "builder" },
+        e("div", { className: "builder-title" }, "Generador de sustitución"),
+        e("div", { className: "builder-row" },
+          e("select", { className: "builder-select", value: ph1, onChange: handlePh1 },
+            e("option", { value: "" }, "Fonema 1"),
+            phonemeKeys.map(phonemeOption)
+          ),
+          e("span", { className: "builder-x" }, "×"),
+          e("select", { className: "builder-select", value: ph2, onChange: handlePh2 },
+            e("option", { value: "" }, "Fonema 2"),
+            phonemeKeys.filter(function(k) { return k !== ph1; }).map(phonemeOption)
+          )
+        ),
+        e("div", { className: "builder-checks" },
+          POSITION_KEYS.map(function(key) {
+            return e("label", { className: "builder-check", key: key },
+              e("input", {
+                type: "checkbox",
+                checked: positions[key],
+                onChange: function() { togglePosition(key); }
+              }),
+              key
+            );
+          }),
+          e("label", { className: "builder-check builder-check--todas" },
+            e("input", { type: "checkbox", checked: todasChecked, onChange: toggleTodas }),
+            "todas"
+          )
+        ),
+        e("button", {
+          className: "btn btn-primary", disabled: !canGenerate, onClick: handleGenerate
+        }, "Generar"),
+        output && e("div", { className: "builder-output" },
+          e("div", { className: "label-row", style: { marginBottom: 8 } },
+            e("span", { className: "label" }, "Resultado"),
+            e("button", {
+              className: "btn btn-copy" + (copied ? " copied" : ""),
+              onClick: handleCopy
+            }, copied ? "✓ Copiado" : "Copiar")
+          ),
+          e("div", { className: "result-box" }, output)
+        )
+      );
+    }
+
     function App() {
       var _s1 = useState(""),    input = _s1[0],  setInput = _s1[1];
       var _s2 = useState(null),  output = _s2[0], setOutput = _s2[1];
@@ -264,6 +413,9 @@
       }, [output]);
 
       return e("div", null,
+        /* ── Sustitution builder ── */
+        e(SustitutionBuilder),
+
         /* ── How it works ── */
         e("div", { className: "how-box" },
           e("strong", null, "\u00bfC\u00f3mo funciona?"), e("br"),
